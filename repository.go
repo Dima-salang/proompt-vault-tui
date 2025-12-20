@@ -20,7 +20,7 @@ func getDB() (*bolt.DB, error) {
 
 
 type PromptRepository interface {
-	CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error)
+	CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error)
 	DeletePrompt(id int) error
 	GetPromptByID(id int) (*Prompt, error)
 	GetAllPrompts() ([]Prompt, error)
@@ -28,12 +28,12 @@ type PromptRepository interface {
 
 
 // creates or updates an individual prompt
-func CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error) {
+func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
-		log.Println(err)
-		return Prompt{}, err
+		log.Fatal(err)
+		return nil, err
 	}
 	defer db.Close()
 
@@ -65,7 +65,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error) {
 		return nil
 	})
 
-	return *prompt, err
+	return prompt, err
 }
 
 
@@ -74,7 +74,7 @@ func DeletePrompt(id int) error {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 		return err
 	}
 	defer db.Close()
@@ -96,6 +96,49 @@ func DeletePrompt(id int) error {
 	})
 
 	return err
+}
+
+
+// get specific prompt details by id
+func GetPromptByID(id int) (*Prompt, error) {
+	// get the prompt bucket
+	db, err := getDB()
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	defer db.Close()
+
+	// create empty prompt struct
+	prompt := &Prompt{}
+
+	err = db.View(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
+		if err != nil {
+			return err
+		}
+
+		// get the prompt
+		key := itob(uint64(id))
+		value := bucket.Get(key)
+		if value == nil {
+			log.Println("prompt not found")
+			return nil
+		}
+
+		// decode the prompt
+		err = json.Unmarshal(value, prompt)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	
+
+
+
+	return prompt, err
 }
 
 

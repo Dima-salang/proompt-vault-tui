@@ -12,6 +12,6 @@ func NewPromptService(promptRepository PromptRepository) *PromptService {
 }
 
 // creates or updates an individual prompt
-func (service *PromptService) CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error) {
+func (service *PromptService) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	return service.promptRepository.CreateOrUpdatePrompt(prompt)
 }

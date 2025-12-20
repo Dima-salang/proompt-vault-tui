@@ -4,8 +4,11 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"log"
+	"log/slog"
 	"github.com/boltdb/bolt"
 )
+
+var logger *slog.Logger
 
 // get bolt db connection
 func getDB() (*bolt.DB, error) {
@@ -32,6 +35,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
+		logger.Error("failed to open database", "error", err)
 		log.Fatal(err)
 		return nil, err
 	}
@@ -41,6 +45,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
+			logger.Error("failed to create bucket", "error", err)
 			return err
 		}
 
@@ -52,6 +57,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 		// encode the prompt
 		encodedPrompt, err := json.Marshal(prompt)
 		if err != nil {
+			logger.Error("failed to encode prompt", "error", err)
 			return err
 		}
 
@@ -59,6 +65,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 		key := itob(uint64(id))
 		err = bucket.Put(key, encodedPrompt)
 		if err != nil {
+			logger.Error("failed to write prompt to bucket", "error", err)
 			return err
 		}
 
@@ -74,6 +81,7 @@ func DeletePrompt(id int) error {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
+		logger.Error("failed to open database", "error", err)
 		log.Fatal(err)
 		return err
 	}
@@ -82,6 +90,7 @@ func DeletePrompt(id int) error {
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
+			logger.Error("failed to create bucket", "error", err)
 			return err
 		}
 
@@ -89,6 +98,7 @@ func DeletePrompt(id int) error {
 		key := itob(uint64(id))
 		err = bucket.Delete(key)
 		if err != nil {
+			logger.Error("failed to delete prompt", "error", err)
 			return err
 		}
 
@@ -104,6 +114,7 @@ func GetPromptByID(id int) (*Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
+		logger.Error("failed to open database", "error", err)
 		log.Fatal(err)
 		return nil, err
 	}
@@ -115,6 +126,7 @@ func GetPromptByID(id int) (*Prompt, error) {
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
+			logger.Error("failed to create bucket", "error", err)
 			return err
 		}
 
@@ -122,13 +134,14 @@ func GetPromptByID(id int) (*Prompt, error) {
 		key := itob(uint64(id))
 		value := bucket.Get(key)
 		if value == nil {
-			log.Println("prompt not found")
+			logger.Error("prompt not found", "id", id)
 			return nil
 		}
 
 		// decode the prompt
 		err = json.Unmarshal(value, prompt)
 		if err != nil {
+			logger.Error("failed to decode prompt", "error", err)
 			return err
 		}
 
@@ -148,6 +161,7 @@ func GetAllPrompts() ([]Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
+		logger.Error("failed to open database", "error", err)
 		log.Fatal(err)
 		return nil, err
 	}
@@ -168,6 +182,7 @@ func GetAllPrompts() ([]Prompt, error) {
 			prompt := &Prompt{}
 			err = json.Unmarshal(v, prompt)
 			if err != nil {
+				logger.Error("failed to decode prompt", "error", err)
 				return err
 			}
 			prompts = append(prompts, *prompt)

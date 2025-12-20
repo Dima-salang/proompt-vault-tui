@@ -143,6 +143,44 @@ func GetPromptByID(id int) (*Prompt, error) {
 
 
 
+// get all prompts
+func GetAllPrompts() ([]Prompt, error) {
+	// get the prompt bucket
+	db, err := getDB()
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	defer db.Close()
+
+	// create empty prompt struct
+	prompts := []Prompt{}
+
+	err = db.View(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
+		if err != nil {
+			return err
+		}
+
+		// get all prompts
+		cursor := bucket.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			prompt := &Prompt{}
+			err = json.Unmarshal(v, prompt)
+			if err != nil {
+				return err
+			}
+			prompts = append(prompts, *prompt)
+		}
+
+		return nil
+	})
+
+	return prompts, err
+}
+
+
+
 // helper function to convert uint64 to []byte
 func itob(v uint64) []byte {
 	b := make([]byte, 8)

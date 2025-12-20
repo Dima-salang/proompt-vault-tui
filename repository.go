@@ -69,6 +69,36 @@ func CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error) {
 }
 
 
+// delete the prompt
+func DeletePrompt(id int) error {
+	// get the prompt bucket
+	db, err := getDB()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	defer db.Close()
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
+		if err != nil {
+			return err
+		}
+
+		// delete the prompt
+		key := itob(uint64(id))
+		err = bucket.Delete(key)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+
 
 // helper function to convert uint64 to []byte
 func itob(v uint64) []byte {

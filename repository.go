@@ -1,10 +1,9 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"log"
-	"strconv"
-
 	"github.com/boltdb/bolt"
 )
 
@@ -46,6 +45,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error) {
 		}
 
 		// create a unique key for the prompt
+		// replaces the id if it already exists
 		id, _ := bucket.NextSequence()
 		prompt.ID = int(id)
 
@@ -56,12 +56,25 @@ func CreateOrUpdatePrompt(prompt *Prompt) (Prompt, error) {
 		}
 
 		// write the prompt to the bucket
-		_ = bucket.Put([]byte(strconv.Itoa(int(id))), encodedPrompt)
+		key := itob(uint64(id))
+		err = bucket.Put(key, encodedPrompt)
+		if err != nil {
+			return err
+		}
 
 		return nil
 	})
 
 	return *prompt, err
+}
+
+
+
+// helper function to convert uint64 to []byte
+func itob(v uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, v)
+	return b
 }
 
 

@@ -6,17 +6,21 @@ import (
 	main "github.com/Dima-salang/proompt-vault-tui"
 )
 
-func TestCreateOrUpdatePrompt(t *testing.T) {
+func TestPromptService_CreateOrUpdatePrompt(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
+		// Named input parameters for receiver constructor.
+		promptRepository main.PromptRepository
 		// Named input parameters for target function.
 		prompt  *main.Prompt
 		want    *main.Prompt
+
 		wantErr bool
 	}{
 		// TODO: Add test cases.
 		{
-			name: "test case 1",
+			name:             "test case 1",
+			promptRepository: main.NewPromptRepository(),
 			prompt: &main.Prompt{
 				Title:         "test title",
 				Description:   "test description",
@@ -32,8 +36,8 @@ func TestCreateOrUpdatePrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := main.NewPromptRepository()
-			got, gotErr := repo.CreateOrUpdatePrompt(tt.prompt)
+			service := main.NewPromptService(tt.promptRepository)
+			got, gotErr := service.CreateOrUpdatePrompt(tt.prompt)
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("CreateOrUpdatePrompt() failed: %v", gotErr)
@@ -44,9 +48,6 @@ func TestCreateOrUpdatePrompt(t *testing.T) {
 				t.Fatal("CreateOrUpdatePrompt() succeeded unexpectedly")
 			}
 			// TODO: update the condition below to compare got with tt.want.
-
-			// compare the prompts
-			// does not compare the id as it is auto generated from the db
 			if got.Title != tt.want.Title || got.Description != tt.want.Description || got.PromptContent != tt.want.PromptContent {
 				t.Errorf("CreateOrUpdatePrompt() = %v, want %v", got, tt.want)
 			}

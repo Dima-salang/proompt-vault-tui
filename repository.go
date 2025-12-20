@@ -13,7 +13,7 @@ var logger *slog.Logger
 // get bolt db connection
 func getDB() (*bolt.DB, error) {
 	// open the database
-	db, err := bolt.Open("prompt.db", 0600, nil)
+	db, err := bolt.Open("prompts.db", 0600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -29,9 +29,17 @@ type PromptRepository interface {
 	GetAllPrompts() ([]Prompt, error)
 }
 
+type promptRepository struct {
+}
+
+// creates a new prompt repository
+func NewPromptRepository() PromptRepository {
+	return &promptRepository{}
+}
+
 
 // creates or updates an individual prompt
-func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
+func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
@@ -77,7 +85,7 @@ func CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 
 
 // delete the prompt
-func DeletePrompt(id int) error {
+func (repo *promptRepository) DeletePrompt(id int) error {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
@@ -110,7 +118,7 @@ func DeletePrompt(id int) error {
 
 
 // get specific prompt details by id
-func GetPromptByID(id int) (*Prompt, error) {
+func (repo *promptRepository) GetPromptByID(id int) (*Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {
@@ -157,7 +165,7 @@ func GetPromptByID(id int) (*Prompt, error) {
 
 
 // get all prompts
-func GetAllPrompts() ([]Prompt, error) {
+func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 	// get the prompt bucket
 	db, err := getDB()
 	if err != nil {

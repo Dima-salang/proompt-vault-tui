@@ -2,19 +2,26 @@ package main
 
 import "errors"
 
-type PromptService struct {
+type PromptService interface {
+	CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error)
+	DeletePrompt(id int) error
+	GetPromptByID(id int) (*Prompt, error)
+	GetAllPrompts() ([]Prompt, error)
+}
+
+type promptService struct {
 	promptRepository PromptRepository
 }
 
 // creates a new prompt service
-func NewPromptService(promptRepository PromptRepository) *PromptService {
-	return &PromptService{
+func NewPromptService(promptRepository PromptRepository) PromptService {
+	return &promptService{
 		promptRepository: promptRepository,
 	}
 }
 
 // creates or updates an individual prompt
-func (service *PromptService) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
+func (service *promptService) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	// validate the prompt
 	if prompt.Title == "" {
 		return nil, errors.New("title is required")
@@ -26,16 +33,16 @@ func (service *PromptService) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 }
 
 
-func (service *PromptService) DeletePrompt(id int) error {
+func (service *promptService) DeletePrompt(id int) error {
 	return service.promptRepository.DeletePrompt(id)
 }
 
 
-func (service *PromptService) GetPromptByID(id int) (*Prompt, error) {
+func (service *promptService) GetPromptByID(id int) (*Prompt, error) {
 	return service.promptRepository.GetPromptByID(id)
 }
 
 
-func (service *PromptService) GetAllPrompts() ([]Prompt, error) {
+func (service *promptService) GetAllPrompts() ([]Prompt, error) {
 	return service.promptRepository.GetAllPrompts()
 }

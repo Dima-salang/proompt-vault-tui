@@ -178,16 +178,7 @@ func itob(v uint64) []byte {
 	return b
 }
 
-
 	
-
-type ProjectRepository interface {
-	CreateProject(project *Project) error
-	UpdateProject(project *Project) error
-	DeleteProject(id int) error
-	GetProjectByID(id int) (*Project, error)
-	GetAllProjects() ([]Project, error)
-}
 
 
 

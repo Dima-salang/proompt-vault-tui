@@ -125,6 +125,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.resetForm()
 				return m, nil
 			case "enter":
+				if m.list.FilterState() == list.Filtering {
+					break
+				}
 				if i, ok := m.list.SelectedItem().(item); ok {
 					err := vault.CopyToClipboard(&i.prompt)
 					if err != nil {

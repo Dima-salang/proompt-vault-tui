@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -87,6 +88,173 @@ func TestCreateOrUpdatePrompt_Unit(t *testing.T) {
 		})
 	}
 }
+
+
+
+
+
+func Test_promptService_DeletePrompt(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		id      int
+		wantErr bool
+		failDelete bool
+	}{
+		{
+			name: "Delete Prompt Success",
+			id: 1,
+			wantErr: false,
+			failDelete: false,
+		},
+		{
+			name: "Delete Prompt Failure",
+			id: 1,
+			wantErr: true,
+			failDelete: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := NewFakePromptRepository()
+			service := NewPromptService(repo)
+
+			repo.prompts[tt.id] = &Prompt{
+				Title:         "test title",
+				Description:   "test description",
+				PromptContent: "test prompt content",
+			}
+
+
+			repo.failDelete = tt.failDelete
+			gotErr := service.DeletePrompt(tt.id)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("DeletePrompt() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("DeletePrompt() succeeded unexpectedly")
+			}
+		})
+	}
+}
+
+func Test_promptService_GetPromptByID(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		id      int
+		want    *Prompt
+		wantErr bool
+		failGetByID bool
+	}{
+		{
+			name: "Get Prompt by ID Success",
+			id: 1,
+			want: &Prompt{
+				Title:         "test title",
+				Description:   "test description",
+				PromptContent: "test prompt content",
+			},
+			wantErr: false,
+			failGetByID: false,
+		},
+		{
+			name: "Get Prompt by ID Failure",
+			id: 1,
+			wantErr: true,
+			failGetByID: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := NewFakePromptRepository()
+			service := NewPromptService(repo)
+
+			repo.prompts[tt.id] = &Prompt{
+				Title:         "test title",
+				Description:   "test description",
+				PromptContent: "test prompt content",
+			}
+			repo.failGetByID = tt.failGetByID
+			got, gotErr := service.GetPromptByID(tt.id)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("GetPromptByID() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("GetPromptByID() succeeded unexpectedly")
+			}
+			if got.Title != tt.want.Title || got.Description != tt.want.Description || got.PromptContent != tt.want.PromptContent {
+				t.Errorf("GetPromptByID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_promptService_GetAllPrompts(t *testing.T) {
+	tests := []struct {
+		name    string // description of this test case
+		want    []Prompt
+		wantErr bool
+		failGetAll bool
+	}{
+		{
+			name: "Get All Prompts Success",
+			want: []Prompt{
+				{
+					Title:         "test title",
+					Description:   "test description",
+					PromptContent: "test prompt content",
+				},
+			},
+			wantErr: false,
+			failGetAll: false,
+		},
+		{
+			name: "Get All Prompts Failure",
+			wantErr: true,
+			failGetAll: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := NewFakePromptRepository()
+			service := NewPromptService(repo)
+
+			repo.prompts[1] = &Prompt{
+				Title:         "test title",
+				Description:   "test description",
+				PromptContent: "test prompt content",
+			}
+			repo.failGetAll = tt.failGetAll
+			got, gotErr := service.GetAllPrompts()
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("GetAllPrompts() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("GetAllPrompts() succeeded unexpectedly")
+			}
+
+			if len(got) != len(tt.want) {
+				t.Errorf("GetAllPrompts() = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetAllPrompts() = %v, want %v", got, tt.want)
+			}
+
+		})
+	}
+}
+
+
 
 type fakePromptRepository struct {
 	prompts            map[int]*Prompt

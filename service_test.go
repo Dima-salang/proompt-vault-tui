@@ -1,32 +1,61 @@
-package main_test
+package main
 
 import (
 	"testing"
-
-	main "github.com/Dima-salang/proompt-vault-tui"
 )
+
+type MockPromptRepository struct {
+	createOrUpdatePromptFunc func(prompt *Prompt) (*Prompt, error)
+	deletePromptFunc         func(id int) error
+	getPromptByIDFunc        func(id int) (*Prompt, error)
+	getAllPromptsFunc        func() ([]Prompt, error)
+}
+
+func (m *MockPromptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
+	if m.createOrUpdatePromptFunc != nil {
+		return m.createOrUpdatePromptFunc(prompt)
+	}
+	return prompt, nil
+}
+
+func (m *MockPromptRepository) DeletePrompt(id int) error {
+	if m.deletePromptFunc != nil {
+		return m.deletePromptFunc(id)
+	}
+	return nil
+}
+
+func (m *MockPromptRepository) GetPromptByID(id int) (*Prompt, error) {
+	if m.getPromptByIDFunc != nil {
+		return m.getPromptByIDFunc(id)
+	}
+	return nil, nil
+}
+
+func (m *MockPromptRepository) GetAllPrompts() ([]Prompt, error) {
+	if m.getAllPromptsFunc != nil {
+		return m.getAllPromptsFunc()
+	}
+	return nil, nil
+}
 
 func TestPromptService_CreateOrUpdatePrompt(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for receiver constructor.
-		promptRepository main.PromptRepository
-		// Named input parameters for target function.
-		prompt  *main.Prompt
-		want    *main.Prompt
-
-		wantErr bool
+		name             string
+		promptRepository PromptRepository
+		prompt           *Prompt
+		want             *Prompt
+		wantErr          bool
 	}{
-		// TODO: Add test cases.
 		{
 			name:             "test case 1",
-			promptRepository: main.NewPromptRepository(),
-			prompt: &main.Prompt{
+			promptRepository: &MockPromptRepository{},
+			prompt: &Prompt{
 				Title:         "test title",
 				Description:   "test description",
 				PromptContent: "test prompt content",
 			},
-			want: &main.Prompt{
+			want: &Prompt{
 				Title:         "test title",
 				Description:   "test description",
 				PromptContent: "test prompt content",
@@ -36,7 +65,7 @@ func TestPromptService_CreateOrUpdatePrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := main.NewPromptService(tt.promptRepository)
+			service := NewPromptService(tt.promptRepository)
 			got, gotErr := service.CreateOrUpdatePrompt(tt.prompt)
 			if gotErr != nil {
 				if !tt.wantErr {
@@ -47,7 +76,7 @@ func TestPromptService_CreateOrUpdatePrompt(t *testing.T) {
 			if tt.wantErr {
 				t.Fatal("CreateOrUpdatePrompt() succeeded unexpectedly")
 			}
-			// TODO: update the condition below to compare got with tt.want.
+
 			if got.Title != tt.want.Title || got.Description != tt.want.Description || got.PromptContent != tt.want.PromptContent {
 				t.Errorf("CreateOrUpdatePrompt() = %v, want %v", got, tt.want)
 			}

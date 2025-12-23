@@ -285,8 +285,12 @@ func (repo *fakePromptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt,
 	if repo.failCreateOrUpdate {
 		return nil, errors.New("failed to create or update prompt")
 	}
+
+	if (prompt.ID == 0) {
+		prompt.ID = repo.nextID
+		repo.nextID++
+	}
 	repo.prompts[prompt.ID] = prompt
-	repo.nextID++
 	return prompt, nil
 }
 

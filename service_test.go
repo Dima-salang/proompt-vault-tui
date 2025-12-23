@@ -303,7 +303,13 @@ func (repo *fakePromptRepository) GetPromptByID(id int) (*Prompt, error) {
 	if repo.failGetByID {
 		return nil, errors.New("prompt not found")
 	}
-	return repo.prompts[id], nil
+
+	// check if the prompt exists
+	prompt, exists := repo.prompts[id]
+	if !exists {
+		return nil, errors.New("prompt not found")
+	}
+	return prompt, nil
 }
 
 func (repo *fakePromptRepository) GetAllPrompts() ([]Prompt, error) {

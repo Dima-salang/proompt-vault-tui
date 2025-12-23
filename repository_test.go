@@ -1,28 +1,30 @@
-package main_test
+package main
 
 import (
+	"io"
+	"log/slog"
+	"path/filepath"
 	"testing"
+	"time"
 
-	main "github.com/Dima-salang/proompt-vault-tui"
+	"github.com/boltdb/bolt"
 )
 
-func TestCreateOrUpdatePrompt(t *testing.T) {
+func TestCreateOrUpdatePrompt_Integration(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for target function.
-		prompt  *main.Prompt
-		want    *main.Prompt
+		name    string // description of this test case
+		prompt  *Prompt
+		want    *Prompt
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "test case 1",
-			prompt: &main.Prompt{
+			prompt: &Prompt{
 				Title:         "test title",
 				Description:   "test description",
 				PromptContent: "test prompt content",
 			},
-			want: &main.Prompt{
+			want: &Prompt{
 				Title:         "test title",
 				Description:   "test description",
 				PromptContent: "test prompt content",
@@ -32,7 +34,18 @@ func TestCreateOrUpdatePrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := main.NewPromptRepository()
+			// Setup temporary DB
+			dir := t.TempDir()
+			dbPath := filepath.Join(dir, "test.db")
+			db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			repo := NewPromptRepository(db, logger)
+
 			got, gotErr := repo.CreateOrUpdatePrompt(tt.prompt)
 			if gotErr != nil {
 				if !tt.wantErr {
@@ -43,10 +56,8 @@ func TestCreateOrUpdatePrompt(t *testing.T) {
 			if tt.wantErr {
 				t.Fatal("CreateOrUpdatePrompt() succeeded unexpectedly")
 			}
-			// TODO: update the condition below to compare got with tt.want.
 
 			// compare the prompts
-			// does not compare the id as it is auto generated from the db
 			if got.Title != tt.want.Title || got.Description != tt.want.Description || got.PromptContent != tt.want.PromptContent {
 				t.Errorf("CreateOrUpdatePrompt() = %v, want %v", got, tt.want)
 			}

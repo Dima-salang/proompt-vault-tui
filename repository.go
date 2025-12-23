@@ -3,22 +3,11 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
-	"log"
+	"errors"
 	"log/slog"
+
 	"github.com/boltdb/bolt"
 )
-
-var logger *slog.Logger
-
-// get bolt db connection
-func getDB() (*bolt.DB, error) {
-	// open the database
-	db, err := bolt.Open("prompts.db", 0600, nil)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
 
 
 
@@ -30,30 +19,26 @@ type PromptRepository interface {
 }
 
 type promptRepository struct {
+	db *bolt.DB
+	logger *slog.Logger
 }
 
 // creates a new prompt repository
-func NewPromptRepository() PromptRepository {
-	return &promptRepository{}
+func NewPromptRepository(db *bolt.DB, logger *slog.Logger) PromptRepository {
+	return &promptRepository{db: db, logger: logger}
 }
 
 
 // creates or updates an individual prompt
 func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	// get the prompt bucket
-	db, err := getDB()
-	if err != nil {
-		logger.Error("failed to open database", "error", err)
-		log.Fatal(err)
-		return nil, err
-	}
-	defer db.Close()
+	db := repo.db
 
 	// write the prompt to the bucket
-	err = db.Update(func(tx *bolt.Tx) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
-			logger.Error("failed to create bucket", "error", err)
+			repo.logger.Error("failed to create bucket", "error", err)
 			return err
 		}
 
@@ -65,7 +50,7 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 		// encode the prompt
 		encodedPrompt, err := json.Marshal(prompt)
 		if err != nil {
-			logger.Error("failed to encode prompt", "error", err)
+			repo.logger.Error("failed to encode prompt", "error", err)
 			return err
 		}
 
@@ -73,7 +58,7 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 		key := itob(uint64(id))
 		err = bucket.Put(key, encodedPrompt)
 		if err != nil {
-			logger.Error("failed to write prompt to bucket", "error", err)
+			repo.logger.Error("failed to write prompt to bucket", "error", err)
 			return err
 		}
 
@@ -87,18 +72,12 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 // delete the prompt
 func (repo *promptRepository) DeletePrompt(id int) error {
 	// get the prompt bucket
-	db, err := getDB()
-	if err != nil {
-		logger.Error("failed to open database", "error", err)
-		log.Fatal(err)
-		return err
-	}
-	defer db.Close()
+	db := repo.db
 
-	err = db.Update(func(tx *bolt.Tx) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
-			logger.Error("failed to create bucket", "error", err)
+			repo.logger.Error("failed to create bucket", "error", err)
 			return err
 		}
 
@@ -106,7 +85,7 @@ func (repo *promptRepository) DeletePrompt(id int) error {
 		key := itob(uint64(id))
 		err = bucket.Delete(key)
 		if err != nil {
-			logger.Error("failed to delete prompt", "error", err)
+			repo.logger.Error("failed to delete prompt", "error", err)
 			return err
 		}
 
@@ -120,21 +99,15 @@ func (repo *promptRepository) DeletePrompt(id int) error {
 // get specific prompt details by id
 func (repo *promptRepository) GetPromptByID(id int) (*Prompt, error) {
 	// get the prompt bucket
-	db, err := getDB()
-	if err != nil {
-		logger.Error("failed to open database", "error", err)
-		log.Fatal(err)
-		return nil, err
-	}
-	defer db.Close()
+	db := repo.db
 
 	// create empty prompt struct
 	prompt := &Prompt{}
 
-	err = db.View(func(tx *bolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
-			logger.Error("failed to create bucket", "error", err)
+			repo.logger.Error("failed to create bucket", "error", err)
 			return err
 		}
 
@@ -142,14 +115,14 @@ func (repo *promptRepository) GetPromptByID(id int) (*Prompt, error) {
 		key := itob(uint64(id))
 		value := bucket.Get(key)
 		if value == nil {
-			logger.Error("prompt not found", "id", id)
-			return nil
+			repo.logger.Error("prompt not found", "id", id)
+			return errors.New("prompt not found")
 		}
 
 		// decode the prompt
 		err = json.Unmarshal(value, prompt)
 		if err != nil {
-			logger.Error("failed to decode prompt", "error", err)
+			repo.logger.Error("failed to decode prompt", "error", err)
 			return err
 		}
 
@@ -167,18 +140,12 @@ func (repo *promptRepository) GetPromptByID(id int) (*Prompt, error) {
 // get all prompts
 func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 	// get the prompt bucket
-	db, err := getDB()
-	if err != nil {
-		logger.Error("failed to open database", "error", err)
-		log.Fatal(err)
-		return nil, err
-	}
-	defer db.Close()
+	db := repo.db
 
 	// create empty prompt struct
 	prompts := []Prompt{}
 
-	err = db.View(func(tx *bolt.Tx) error {
+	err := db.View(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("prompts"))
 		if err != nil {
 			return err
@@ -190,7 +157,7 @@ func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 			prompt := &Prompt{}
 			err = json.Unmarshal(v, prompt)
 			if err != nil {
-				logger.Error("failed to decode prompt", "error", err)
+				repo.logger.Error("failed to decode prompt", "error", err)
 				return err
 			}
 			prompts = append(prompts, *prompt)
@@ -211,16 +178,7 @@ func itob(v uint64) []byte {
 	return b
 }
 
-
 	
-
-type ProjectRepository interface {
-	CreateProject(project *Project) error
-	UpdateProject(project *Project) error
-	DeleteProject(id int) error
-	GetProjectByID(id int) (*Project, error)
-	GetAllProjects() ([]Project, error)
-}
 
 
 

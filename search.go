@@ -1,10 +1,9 @@
 package main
 
 import (
-	"github.com/sahilm/fuzzy"
 	"github.com/atotto/clipboard"
+	"github.com/sahilm/fuzzy"
 )
-
 
 func SearchPrompts(prompts Prompts, query string) fuzzy.Matches {
 	// search for the query in the prompts array
@@ -13,7 +12,6 @@ func SearchPrompts(prompts Prompts, query string) fuzzy.Matches {
 	// return the results
 	return results
 }
-
 
 func CopyToClipboard(prompt *Prompt) error {
 	// copy the text to the clipboard

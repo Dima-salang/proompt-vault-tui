@@ -73,6 +73,10 @@ func NewModel(service vault.PromptService) Model {
 				key.WithKeys("a"),
 				key.WithHelp("a", "create prompt"),
 			),
+			key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "copy to clipboard"),
+			),
 		}
 	}
 	l.AdditionalFullHelpKeys = l.AdditionalShortHelpKeys
@@ -119,6 +123,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "a":
 				m.state = stateCreate
 				m.resetForm()
+				return m, nil
+			case "enter":
+				if i, ok := m.list.SelectedItem().(item); ok {
+					err := vault.CopyToClipboard(&i.prompt)
+					if err != nil {
+						m.err = err
+						return m, nil
+					}
+					return m, m.list.NewStatusMessage(statusMessageStyle.Render("Copied to clipboard!"))
+				}
 				return m, nil
 			}
 		} else if m.state == stateCreate {

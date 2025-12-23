@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"log/slog"
+
 	"github.com/boltdb/bolt"
 )
 
@@ -114,7 +116,7 @@ func (repo *promptRepository) GetPromptByID(id int) (*Prompt, error) {
 		value := bucket.Get(key)
 		if value == nil {
 			repo.logger.Error("prompt not found", "id", id)
-			return nil
+			return errors.New("prompt not found")
 		}
 
 		// decode the prompt

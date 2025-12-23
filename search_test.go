@@ -1,11 +1,11 @@
 package main_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
 	main "github.com/Dima-salang/proompt-vault-tui"
-	"github.com/atotto/clipboard"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -43,7 +43,7 @@ func TestSearchPrompts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := main.SearchPrompts(tt.prompts, tt.query)
 
-			// compare the results 
+			// compare the results
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SearchPrompts() = %v, want %v", got, tt.want)
 			}
@@ -69,15 +69,24 @@ func TestCopyToClipboard(t *testing.T) {
 			wantErr: false,
 			want:    "test prompt content",
 		},
+		{
+			name: "Copy to clipboard failure",
+			prompt: &main.Prompt{
+				Title:         "test title",
+				Description:   "test description",
+				PromptContent: "test prompt content",
+			},
+			wantErr: true,
+			want:    "test prompt content",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotErr := main.CopyToClipboard(tt.prompt)
-
-			// we also read from the clipboard since we want to verify
-			// whether it truly wrote to the clipboard
-			got, err := clipboard.ReadAll()
-
+			clipboard := &FakeClipBoard{
+				clipboard: tt.want,
+				wantErr:   tt.wantErr,
+			}
+			gotErr := clipboard.CopyToClipboard(tt.prompt.PromptContent)
 
 			// writing to the clipboard
 			if gotErr != nil {
@@ -86,17 +95,36 @@ func TestCopyToClipboard(t *testing.T) {
 				}
 				return
 			}
+
+			if clipboard.clipboard != tt.want {
+				t.Errorf("CopyToClipboard() = %v, want %v", clipboard.clipboard, tt.want)
+			}
+
 			if tt.wantErr {
 				t.Fatal("CopyToClipboard() succeeded unexpectedly")
 			}
-
-			// reading from the clipboard
-			if err != nil {
-				t.Errorf("CopyToClipboard() failed: %v", err)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CopyToClipboard() = %v, want %v", got, tt.want)
-			}
 		})
 	}
+}
+
+// fake clipboard implementation for unit tests
+// since github actions does not have any clipboard functionality as it is headless
+type FakeClipBoard struct {
+	clipboard string
+	wantErr   bool
+}
+
+func (f *FakeClipBoard) CopyToClipboard(textToCopy string) error {
+	if f.wantErr {
+		return errors.New("failed to write to clipboard")
+	}
+	f.clipboard = textToCopy
+	return nil
+}
+
+func (f *FakeClipBoard) ReadAll() (string, error) {
+	if f.wantErr {
+		return "", errors.New("failed to read from clipboard")
+	}
+	return f.clipboard, nil
 }

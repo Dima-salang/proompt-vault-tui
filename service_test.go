@@ -243,9 +243,6 @@ func Test_promptService_GetAllPrompts(t *testing.T) {
 				t.Fatal("GetAllPrompts() succeeded unexpectedly")
 			}
 
-			if len(got) != len(tt.want) {
-				t.Errorf("GetAllPrompts() = %v, want %v", got, tt.want)
-			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAllPrompts() = %v, want %v", got, tt.want)
 			}

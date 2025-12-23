@@ -148,6 +148,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "tab", "shift+tab", "enter", "up", "down":
 				s := msg.String()
 
+				// Prioritize Submit if Enter is pressed on Submit button
+				if s == "enter" && m.focusIndex == 4 {
+					return m, m.createPrompt
+				}
+
 				// If in textarea (content input), enter should add new line unless ctrl+enter or moved away
 				if m.focusIndex == 2 && s == "enter" {
 					// Textarea handles enter natively
@@ -157,7 +162,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Navigation logic
 				if s == "up" || s == "shift+tab" {
 					m.focusIndex--
-				} else if s == "down" || s == "tab" || (s == "enter" && m.focusIndex != 2) { // Skip enter for textarea
+				} else if s == "down" || s == "tab" || (s == "enter" && m.focusIndex != 2) {
 					m.focusIndex++
 				}
 
@@ -165,11 +170,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.focusIndex = 0
 				} else if m.focusIndex < 0 {
 					m.focusIndex = 4
-				}
-
-				// Handle Submit on Enter if focused on Submit button (represented by index 4)
-				if m.focusIndex == 4 && s == "enter" {
-					return m, m.createPrompt
 				}
 
 				// Update focus

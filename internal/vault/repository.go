@@ -41,12 +41,9 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 		}
 
 		// check for existence
-		id := prompt.ID
-		repo.logger.Info("checking for existing prompt", "id", id)
-		existingPrompt, err := repo.GetPromptByID(id)
-		if existingPrompt == nil {
+		// if the id is 0, it means that it is a new prompt
+		if prompt.ID == 0 {
 			// create a unique key for the prompt
-			// replaces the id if it already exists
 			id, _ := bucket.NextSequence()
 			prompt.ID = int(id)
 			// set the created at time and update time
@@ -55,6 +52,7 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 		} else {
 			// just update the update time
 			prompt.UpdatedAt = time.Now()
+			repo.logger.Info("updating prompt", "id", prompt.ID)
 		}
 
 		// encode the prompt
@@ -65,7 +63,7 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 		}
 
 		// write the prompt to the bucket
-		key := itob(uint64(id))
+		key := itob(uint64(prompt.ID))
 		err = bucket.Put(key, encodedPrompt)
 		if err != nil {
 			repo.logger.Error("failed to write prompt to bucket", "error", err)
@@ -174,6 +172,7 @@ func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 
 		return nil
 	})
+	repo.logger.Info("fetched all prompts", "count", len(prompts))
 
 	return prompts, err
 }

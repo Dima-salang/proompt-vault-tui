@@ -1,3 +1,10 @@
 time=2025-12-24T01:42:16.688+08:00 level=INFO msg="checking for existing prompt" id=0
 time=2025-12-24T01:42:16.688+08:00 level=ERROR msg="prompt not found" id=0
 time=2025-12-24T01:43:09.992+08:00 level=INFO msg="checking for existing prompt" id=0
+time=2025-12-24T01:53:25.966+08:00 level=INFO msg="checking for existing prompt" id=0
+time=2025-12-24T01:53:35.961+08:00 level=INFO msg="checking for existing prompt" id=0
+time=2025-12-24T01:56:11.802+08:00 level=INFO msg="fetched all prompts" count=11
+time=2025-12-24T01:56:25.863+08:00 level=INFO msg="checking for existing prompt" id=0
+time=2025-12-24T01:56:25.876+08:00 level=INFO msg="fetched all prompts" count=11
+time=2025-12-24T01:59:37.880+08:00 level=INFO msg="fetched all prompts" count=11
+time=2025-12-24T01:59:59.011+08:00 level=INFO msg="fetched all prompts" count=12

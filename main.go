@@ -11,8 +11,16 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	// logging
+	f, err := os.OpenFile("debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		os.Exit(1)
+	}
+	defer f.Close()
+	logger := slog.New(slog.NewTextHandler(f, nil))
+
+	// open the db connection
 	db, err := openDB()
 	if err != nil {
 		logger.Error("failed to open database", "error", err)
@@ -20,9 +28,11 @@ func main() {
 	}
 	defer db.Close()
 
+	// create the repository and service
 	repo := vault.NewPromptRepository(db, logger)
 	service := vault.NewPromptService(repo)
 
+	// run the tui
 	p := tea.NewProgram(tui.NewModel(service), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		logger.Error("failed to run tui", "error", err)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/boltdb/bolt"
 )
@@ -39,10 +40,22 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 			return err
 		}
 
-		// create a unique key for the prompt
-		// replaces the id if it already exists
-		id, _ := bucket.NextSequence()
-		prompt.ID = int(id)
+		// check for existence
+		id := prompt.ID
+		repo.logger.Info("checking for existing prompt", "id", id)
+		existingPrompt, err := repo.GetPromptByID(id)
+		if existingPrompt == nil {
+			// create a unique key for the prompt
+			// replaces the id if it already exists
+			id, _ := bucket.NextSequence()
+			prompt.ID = int(id)
+			// set the created at time and update time
+			prompt.CreatedAt = time.Now()
+			prompt.UpdatedAt = time.Now()
+		} else {
+			// just update the update time
+			prompt.UpdatedAt = time.Now()
+		}
 
 		// encode the prompt
 		encodedPrompt, err := json.Marshal(prompt)
@@ -111,6 +124,12 @@ func (repo *promptRepository) GetPromptByID(id int) (*Prompt, error) {
 		value := bucket.Get(key)
 		if value == nil {
 			repo.logger.Error("prompt not found", "id", id)
+
+			// make prompt nil so that it will return nil for the prompt
+			// this means that there is no existing prompt with that id
+			prompt = nil
+
+			// then return the error
 			return errors.New("prompt not found")
 		}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -160,7 +161,10 @@ func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 
 		// get all prompts
 		cursor := bucket.Cursor()
-		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+		// looks at the last item first and goes to the first item
+		// effectively, this is sorting by creation date
+		// but we will sort by updated at after this
+		for k, v := cursor.Last(); k != nil; k, v = cursor.Prev() {
 			prompt := &Prompt{}
 			err := json.Unmarshal(v, prompt)
 			if err != nil {
@@ -173,6 +177,12 @@ func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 		return nil
 	})
 	repo.logger.Info("fetched all prompts", "count", len(prompts))
+
+	// sort by updated at after sorting by creation
+	// as we want to show the most recent prompts that were updated first
+	sort.Slice(prompts, func(i, j int) bool {
+		return prompts[i].UpdatedAt.After(prompts[j].UpdatedAt)
+	})
 
 	return prompts, err
 }

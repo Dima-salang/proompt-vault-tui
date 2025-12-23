@@ -23,7 +23,7 @@ jobs:
         cache: true
 
     - name: Set up clipboard dependencies
-      run: sudo apt-get install xclip
+      run: sudo apt-get install xclip && sudo apt-get install xsel
 
     - name: Install Deps
       run: go mod download

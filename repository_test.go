@@ -32,7 +32,12 @@ func TestCreateOrUpdatePrompt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := main.NewPromptRepository()
+			db, err := main.getDB()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			repo := main.NewPromptRepository(db)
 			got, gotErr := repo.CreateOrUpdatePrompt(tt.prompt)
 			if gotErr != nil {
 				if !tt.wantErr {

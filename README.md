@@ -20,27 +20,31 @@ If you have Go installed, just clone and build.
 ```bash
 git clone https://github.com/Dima-salang/proompt-vault-tui.git
 cd proompt-vault-tui
-go build -o prompt-vault .
+go build -o pvt .
 ```
 
 
 (Optional) Toss it in your path so you can run it from anywhere:
 ```bash
-sudo mv prompt-vault /usr/local/bin/
+sudo mv pvt /usr/local/bin/
 ```
 
 Or you can do go get it:
 ```bash
-go install github.com/Dima-salang/proompt-vault-tui@latest
+go install "github.com/Dima-salang/proompt-vault-tui@latest"
 ```
 
-This will install it to your `$GOPATH/bin` directory.
+This will install it to your `$GOPATH/bin` directory. 
+Since the bin executable name is quite long, you can rename it with pvt or any name you like for easy access.
+```
+mv $GOBIN/proompt-vault-tui $GOBIN/pvt
+```
 
 ### Running it
 
 Just type:
 ```bash
-prompt-vault
+pvt
 ```
 
 ### Controls

@@ -41,61 +41,77 @@ type Model struct {
 }
 
 func NewModel(service vault.PromptService) Model {
-	// Initialize inputs
+	// Initialize inputs with clean styling
 	ti := textinput.New()
-	ti.Placeholder = "Prompt Title"
+	ti.Placeholder = "Enter prompt title..."
 	ti.Focus()
 	ti.CharLimit = 50
-	ti.Width = 30
+	ti.Width = 60
+	ti.PromptStyle = focusedPromptStyle
+	ti.TextStyle = inputStyle
 
 	desc := textinput.New()
-	desc.Placeholder = "Description"
+	desc.Placeholder = "Brief description..."
 	desc.CharLimit = 100
-	desc.Width = 50
+	desc.Width = 60
+	desc.TextStyle = inputStyle
 
 	cont := textarea.New()
-	cont.Placeholder = "Prompt Content..."
+	cont.Placeholder = "Write your prompt content here..."
 	cont.ShowLineNumbers = true
-	cont.SetWidth(50)
-	cont.SetHeight(10)
+	cont.SetWidth(70)
+	cont.SetHeight(12)
+	cont.FocusedStyle.Base = lipgloss.NewStyle().Foreground(textColor)
 
-	// Initialize List
+	// Initialize List with clean delegate styling
 	items := []list.Item{}
-	// Delegate will be set in Update or separate init function, but basic list config here
-	// Delegate with custom styles
 	delegate := list.NewDefaultDelegate()
+
+	// Selected item - no background, just color and border
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		Foreground(primaryColor).
-		Background(lipgloss.Color("#1A1A1A")).
-		BorderStyle(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(primaryColor).
 		BorderLeft(true).
-		Padding(0, 1, 0, 2)
+		Padding(0, 0, 0, 2).
+		Bold(true)
+
 	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
 		Foreground(subtleColor).
-		Background(lipgloss.Color("#1A1A1A")).
-		Padding(0, 1, 0, 2)
+		Padding(0, 0, 0, 2)
+
+	// Normal items
+	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
+		Foreground(textColor).
+		Padding(0, 0, 0, 1)
+
+	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.
+		Foreground(mutedColor).
+		Padding(0, 0, 0, 1)
 
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Prompts Vault"
+	l.Title = "✨ Prompt Vault"
 	l.Styles.Title = listTitleStyle
+	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(primaryColor).Bold(true)
+	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(accentColor)
+
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(
 				key.WithKeys("a"),
-				key.WithHelp("a", "create prompt"),
+				key.WithHelp("a", "new"),
 			),
 			key.NewBinding(
 				key.WithKeys("e"),
-				key.WithHelp("e", "edit prompt"),
+				key.WithHelp("e", "edit"),
 			),
 			key.NewBinding(
 				key.WithKeys("d"),
-				key.WithHelp("d", "delete prompt"),
+				key.WithHelp("d", "delete"),
 			),
 			key.NewBinding(
 				key.WithKeys("enter"),
-				key.WithHelp("enter", "copy to clipboard"),
+				key.WithHelp("↵", "copy"),
 			),
 		}
 	}
@@ -167,7 +183,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.err = err
 						return m, nil
 					}
-					return m, m.list.NewStatusMessage(statusMessageStyle.Render("Copied to clipboard!"))
+					return m, m.list.NewStatusMessage(statusMessageStyle.Render("✓ Copied to clipboard!"))
 				}
 				return m, nil
 			case "d":
@@ -251,7 +267,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateList
 		m.activePrompt = nil
 		cmds = append(cmds, m.fetchPrompts)
-		cmds = append(cmds, m.list.NewStatusMessage(statusMessageStyle.Render("Prompt deleted!")))
+		cmds = append(cmds, m.list.NewStatusMessage(statusMessageStyle.Render("✓ Prompt deleted")))
 
 	case errMsg:
 		m.err = msg
@@ -276,7 +292,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	if m.err != nil {
-		return errorMessageStyle.Render("Error: " + m.err.Error())
+		return errorMessageStyle.Render("⚠ Error: " + m.err.Error())
 	}
 
 	if m.state == stateList {
@@ -284,63 +300,116 @@ func (m Model) View() string {
 	}
 
 	if m.state == stateDeleteConfirm {
-		var b strings.Builder
-		b.WriteString("\n\n")
-		b.WriteString(errorMessageStyle.Render("Are you sure you want to delete this prompt?"))
-		b.WriteString("\n\n")
-		b.WriteString(formTitleStyle.Render(m.activePrompt.Title))
-		b.WriteString("\n\n")
-		b.WriteString(statusMessageStyle.Render("(y/enter to confirm • n/esc to cancel)"))
-		return appStyle.Render(b.String())
+		// Clean confirmation dialog
+		confirmBox := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(dangerColor).
+			Padding(2, 4).
+			Width(60)
+
+		titleStyle := lipgloss.NewStyle().
+			Foreground(dangerColor).
+			Bold(true).
+			MarginBottom(1)
+
+		promptStyle := lipgloss.NewStyle().
+			Foreground(primaryColor).
+			Padding(1, 0).
+			MarginTop(1).
+			MarginBottom(2).
+			Italic(true)
+
+		helpText := lipgloss.NewStyle().
+			Foreground(subtleColor)
+
+		content := titleStyle.Render("⚠ Delete Prompt?") + "\n\n" +
+			promptStyle.Render(m.activePrompt.Title) + "\n" +
+			helpText.Render("y/↵ confirm  •  n/esc cancel")
+
+		return appStyle.Render("\n" + confirmBox.Render(content))
 	}
 
 	// Create Form View
 	var b strings.Builder
 
+	// Form header
 	title := "✨ Create New Prompt"
 	if m.activePrompt != nil {
-		title = "✏️ Edit Prompt"
+		title = "✏️  Edit Prompt"
 	}
-
 	b.WriteString(formTitleStyle.Render(title))
-	b.WriteString("\n")
+	b.WriteString("\n\n")
 
+	// Form fields
 	b.WriteString(m.inputView("Title", m.titleInput, m.focusIndex == 0))
 	b.WriteString("\n")
 	b.WriteString(m.inputView("Description", m.descriptionInput, m.focusIndex == 1))
 	b.WriteString("\n")
 
-	// Textarea special handling with improved styling
+	// Content textarea
 	label := "Content"
+	labelStyle := blurredPromptStyle
 	if m.focusIndex == 2 {
-		label = focusedPromptStyle.Render("▶ " + label)
+		labelStyle = focusedPromptStyle
+		label = "▸ " + label
 	} else {
-		label = blurredPromptStyle.Render("  " + label)
+		label = "  " + label
 	}
-	b.WriteString(label + "\n")
-	b.WriteString(m.contentInput.View())
+	b.WriteString(labelStyle.Render(label) + "\n")
+
+	// Content box with subtle border
+	contentBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
+		Padding(0, 1)
+
+	if m.focusIndex == 2 {
+		contentBorder = contentBorder.BorderForeground(primaryColor)
+	}
+
+	b.WriteString(contentBorder.Render(m.contentInput.View()))
 	b.WriteString("\n\n")
 
-	btn := blurredButtonStyle.Render("Submit")
+	// Submit button
+	btn := blurredButtonStyle.Render("  Submit  ")
 	if m.focusIndex == 3 {
-		btn = focusedButtonStyle.Render("▶ Submit ◀")
+		btn = focusedButtonStyle.Render("▸ Submit ◂")
 	}
 	b.WriteString(btn)
+	b.WriteString("\n")
 
-	b.WriteString(helpStyle.Render("\n\n┌─ (esc cancel • tab navigate • enter submit) ─┐"))
+	// Help text
+	b.WriteString(helpStyle.Render("esc cancel  •  tab/shift+tab navigate  •  ↵ submit"))
 
 	return appStyle.Render(b.String())
 }
 
 func (m Model) inputView(label string, input textinput.Model, focused bool) string {
+	labelStyle := blurredPromptStyle
 	if focused {
-		label = focusedPromptStyle.Render("▶ " + label)
-		input.TextStyle = focusedPromptStyle
+		labelStyle = focusedPromptStyle
+		label = "▸ " + label
+		input.PromptStyle = focusedPromptStyle
+		input.TextStyle = inputStyle
 	} else {
-		label = blurredPromptStyle.Render("  " + label)
-		input.TextStyle = blurredPromptStyle
+		label = "  " + label
+		input.PromptStyle = blurredPromptStyle
+		input.TextStyle = lipgloss.NewStyle().Foreground(mutedColor)
 	}
-	return fmt.Sprintf("%s\n%s\n", label, input.View())
+
+	// Input with clean border
+	inputBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(borderColor).
+		Padding(0, 1)
+
+	if focused {
+		inputBorder = inputBorder.BorderForeground(primaryColor)
+	}
+
+	return fmt.Sprintf("%s\n%s\n",
+		labelStyle.Render(label),
+		inputBorder.Render(input.View()))
 }
 
 func (m *Model) updateFocus() tea.Cmd {

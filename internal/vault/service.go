@@ -20,7 +20,10 @@ func NewPromptService(promptRepository PromptRepository) PromptService {
 	}
 }
 
-// creates or updates an individual prompt
+/* 
+	Creates or updates an individual prompt.
+	It returns the created or updated prompt and an error if any.
+*/
 func (service *promptService) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, error) {
 	// validate the prompt
 	if prompt.Title == "" {
@@ -33,16 +36,20 @@ func (service *promptService) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 }
 
 
+// Deletes a specific prompt by ID.
 func (service *promptService) DeletePrompt(id int) error {
 	return service.promptRepository.DeletePrompt(id)
 }
 
 
+// Gets a specific prompt by ID.
 func (service *promptService) GetPromptByID(id int) (*Prompt, error) {
 	return service.promptRepository.GetPromptByID(id)
 }
 
 
+// Gets all prompts.
+// Primarily used for the list view and initial loading of the app
 func (service *promptService) GetAllPrompts() ([]Prompt, error) {
 	return service.promptRepository.GetAllPrompts()
 }

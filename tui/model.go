@@ -116,6 +116,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.fetchPrompts,
 		textinput.Blink,
+		tea.EnableMouseCellMotion,
 	)
 }
 
@@ -206,9 +207,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				// If in textarea (content input), enter should add new line unless ctrl+enter or moved away
-				if m.focusIndex == 2 && s == "enter" {
-					// Textarea handles enter natively
-					break
+				if m.focusIndex == 2 {
+					if s == "enter" {
+						break // Textarea handles enter natively
+					}
+					if s == "up" || s == "down" {
+						break // Textarea handles up/down natively
+					}
 				}
 
 				// Navigation logic

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Dima-salang/proompt-vault-tui/internal/vault"
 	"github.com/charmbracelet/bubbles/key"
@@ -10,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type sessionState int
@@ -34,6 +36,8 @@ type Model struct {
 	err    error
 	width  int
 	height int
+
+	activePrompt *vault.Prompt // if nil, we are creating. if not, we are editing.
 }
 
 func NewModel(service vault.PromptService) Model {
@@ -63,15 +67,32 @@ func NewModel(service vault.PromptService) Model {
 	// Initialize List
 	items := []list.Item{}
 	// Delegate will be set in Update or separate init function, but basic list config here
+	// Delegate with custom styles
 	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(primaryColor).
+		Background(lipgloss.Color("#1A1A1A")).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(primaryColor).
+		BorderLeft(true).
+		Padding(0, 1, 0, 2)
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+		Foreground(subtleColor).
+		Background(lipgloss.Color("#1A1A1A")).
+		Padding(0, 1, 0, 2)
+
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Prompts"
-	l.SetShowHelp(true)
+	l.Title = "Prompts Vault"
+	l.Styles.Title = listTitleStyle
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(
 				key.WithKeys("a"),
 				key.WithHelp("a", "create prompt"),
+			),
+			key.NewBinding(
+				key.WithKeys("e"),
+				key.WithHelp("e", "edit prompt"),
 			),
 			key.NewBinding(
 				key.WithKeys("enter"),
@@ -121,8 +142,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, tea.Quit
 			case "a":
+				if m.list.FilterState() == list.Filtering {
+					break
+				}
 				m.state = stateCreate
 				m.resetForm()
+				return m, nil
+			case "e":
+				if m.list.FilterState() == list.Filtering {
+					break
+				}
+				if i, ok := m.list.SelectedItem().(item); ok {
+					m.state = stateCreate
+					m.activePrompt = &i.prompt
+					m.setForm(i.prompt)
+				}
 				return m, nil
 			case "enter":
 				if m.list.FilterState() == list.Filtering {
@@ -224,18 +258,26 @@ func (m Model) View() string {
 
 	// Create Form View
 	var b strings.Builder
-	b.WriteString(headerStyle.Render("Create New Prompt"))
-	b.WriteString("\n\n")
+
+	title := "✨ Create New Prompt"
+	if m.activePrompt != nil {
+		title = "✏️ Edit Prompt"
+	}
+
+	b.WriteString(formTitleStyle.Render(title))
+	b.WriteString("\n")
 
 	b.WriteString(m.inputView("Title", m.titleInput, m.focusIndex == 0))
 	b.WriteString("\n")
 	b.WriteString(m.inputView("Description", m.descriptionInput, m.focusIndex == 1))
 	b.WriteString("\n")
 
-	// Textarea special handling for label
+	// Textarea special handling with improved styling
 	label := "Content"
 	if m.focusIndex == 2 {
-		label = statusMessageStyle.Render(label)
+		label = focusedPromptStyle.Render("▶ " + label)
+	} else {
+		label = blurredPromptStyle.Render("  " + label)
 	}
 	b.WriteString(label + "\n")
 	b.WriteString(m.contentInput.View())
@@ -244,21 +286,24 @@ func (m Model) View() string {
 	b.WriteString(m.inputView("Tags", m.tagsInput, m.focusIndex == 3))
 	b.WriteString("\n\n")
 
-	// Submit Button
-	btn := "[ Submit ]"
+	btn := blurredButtonStyle.Render("Submit")
 	if m.focusIndex == 4 {
-		btn = statusMessageStyle.Render(btn)
+		btn = focusedButtonStyle.Render("▶ Submit ◀")
 	}
 	b.WriteString(btn)
 
-	b.WriteString("\n\n(esc to cancel, tab to navigate)")
+	b.WriteString(helpStyle.Render("\n\n┌─ (esc cancel • tab navigate • enter submit) ─┐"))
 
 	return appStyle.Render(b.String())
 }
 
 func (m Model) inputView(label string, input textinput.Model, focused bool) string {
 	if focused {
-		label = statusMessageStyle.Render(label)
+		label = focusedPromptStyle.Render("▶ " + label)
+		input.TextStyle = focusedPromptStyle
+	} else {
+		label = blurredPromptStyle.Render("  " + label)
+		input.TextStyle = blurredPromptStyle
 	}
 	return fmt.Sprintf("%s\n%s\n", label, input.View())
 }
@@ -287,6 +332,16 @@ func (m *Model) resetForm() {
 	m.descriptionInput.SetValue("")
 	m.contentInput.SetValue("")
 	m.tagsInput.SetValue("")
+	m.activePrompt = nil
+	m.focusIndex = 0
+	m.titleInput.Focus()
+}
+
+func (m *Model) setForm(p vault.Prompt) {
+	m.titleInput.SetValue(p.Title)
+	m.descriptionInput.SetValue(p.Description)
+	m.contentInput.SetValue(p.PromptContent)
+	m.tagsInput.SetValue(strings.Join(p.Tags, ", "))
 	m.focusIndex = 0
 	m.titleInput.Focus()
 }
@@ -311,7 +366,16 @@ func (m Model) createPrompt() tea.Msg {
 		tags[i] = strings.TrimSpace(t)
 	}
 
+	id := 0
+	var createdAt time.Time
+	if m.activePrompt != nil {
+		id = m.activePrompt.ID
+		createdAt = m.activePrompt.CreatedAt
+	}
+
 	p := &vault.Prompt{
+		ID:            id,
+		CreatedAt:     createdAt,
 		Title:         m.titleInput.Value(),
 		Description:   m.descriptionInput.Value(),
 		PromptContent: m.contentInput.Value(),

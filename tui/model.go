@@ -19,6 +19,7 @@ type sessionState int
 const (
 	stateList sessionState = iota
 	stateCreate
+	stateDeleteConfirm
 )
 
 type Model struct {
@@ -30,7 +31,6 @@ type Model struct {
 	titleInput       textinput.Model
 	descriptionInput textinput.Model
 	contentInput     textarea.Model
-	tagsInput        textinput.Model
 	focusIndex       int
 
 	err    error
@@ -58,11 +58,6 @@ func NewModel(service vault.PromptService) Model {
 	cont.ShowLineNumbers = true
 	cont.SetWidth(50)
 	cont.SetHeight(10)
-
-	tags := textinput.New()
-	tags.Placeholder = "Tags (comma separated)"
-	tags.CharLimit = 100
-	tags.Width = 50
 
 	// Initialize List
 	items := []list.Item{}
@@ -95,6 +90,10 @@ func NewModel(service vault.PromptService) Model {
 				key.WithHelp("e", "edit prompt"),
 			),
 			key.NewBinding(
+				key.WithKeys("d"),
+				key.WithHelp("d", "delete prompt"),
+			),
+			key.NewBinding(
 				key.WithKeys("enter"),
 				key.WithHelp("enter", "copy to clipboard"),
 			),
@@ -109,7 +108,6 @@ func NewModel(service vault.PromptService) Model {
 		titleInput:       ti,
 		descriptionInput: desc,
 		contentInput:     cont,
-		tagsInput:        tags,
 		focusIndex:       0,
 	}
 }
@@ -171,6 +169,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, m.list.NewStatusMessage(statusMessageStyle.Render("Copied to clipboard!"))
 				}
 				return m, nil
+			case "d":
+				if m.list.FilterState() == list.Filtering {
+					break
+				}
+				if i, ok := m.list.SelectedItem().(item); ok {
+					m.activePrompt = &i.prompt
+					m.state = stateDeleteConfirm
+				}
+				return m, nil
+			}
+		} else if m.state == stateDeleteConfirm {
+			switch msg.String() {
+			case "y", "Y", "enter":
+				if m.activePrompt != nil {
+					return m, m.deletePrompt
+				}
+			case "n", "N", "esc", "q":
+				m.state = stateList
+				m.activePrompt = nil
+				return m, nil
 			}
 		} else if m.state == stateCreate {
 			switch msg.String() {
@@ -183,7 +201,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s := msg.String()
 
 				// Prioritize Submit if Enter is pressed on Submit button
-				if s == "enter" && m.focusIndex == 4 {
+				if s == "enter" && m.focusIndex == 3 {
 					return m, m.createPrompt
 				}
 
@@ -200,10 +218,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.focusIndex++
 				}
 
-				if m.focusIndex > 4 { // 0: Title, 1: Desc, 2: Content, 3: Tags, 4: Submit
+				if m.focusIndex > 3 { // 0: Title, 1: Desc, 2: Content, 3: Submit
 					m.focusIndex = 0
 				} else if m.focusIndex < 0 {
-					m.focusIndex = 4
+					m.focusIndex = 3
 				}
 
 				// Update focus
@@ -224,6 +242,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resetForm()
 		cmds = append(cmds, m.fetchPrompts) // Refresh list
 
+	case promptDeletedMsg:
+		m.state = stateList
+		m.activePrompt = nil
+		cmds = append(cmds, m.fetchPrompts)
+		cmds = append(cmds, m.list.NewStatusMessage(statusMessageStyle.Render("Prompt deleted!")))
+
 	case errMsg:
 		m.err = msg
 		return m, nil
@@ -240,8 +264,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		m.contentInput, cmd = m.contentInput.Update(msg)
 		cmds = append(cmds, cmd)
-		m.tagsInput, cmd = m.tagsInput.Update(msg)
-		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
@@ -254,6 +276,17 @@ func (m Model) View() string {
 
 	if m.state == stateList {
 		return appStyle.Render(m.list.View())
+	}
+
+	if m.state == stateDeleteConfirm {
+		var b strings.Builder
+		b.WriteString("\n\n")
+		b.WriteString(errorMessageStyle.Render("Are you sure you want to delete this prompt?"))
+		b.WriteString("\n\n")
+		b.WriteString(formTitleStyle.Render(m.activePrompt.Title))
+		b.WriteString("\n\n")
+		b.WriteString(statusMessageStyle.Render("(y/enter to confirm • n/esc to cancel)"))
+		return appStyle.Render(b.String())
 	}
 
 	// Create Form View
@@ -283,11 +316,8 @@ func (m Model) View() string {
 	b.WriteString(m.contentInput.View())
 	b.WriteString("\n\n")
 
-	b.WriteString(m.inputView("Tags", m.tagsInput, m.focusIndex == 3))
-	b.WriteString("\n\n")
-
 	btn := blurredButtonStyle.Render("Submit")
-	if m.focusIndex == 4 {
+	if m.focusIndex == 3 {
 		btn = focusedButtonStyle.Render("▶ Submit ◀")
 	}
 	b.WriteString(btn)
@@ -312,7 +342,6 @@ func (m *Model) updateFocus() tea.Cmd {
 	m.titleInput.Blur()
 	m.descriptionInput.Blur()
 	m.contentInput.Blur()
-	m.tagsInput.Blur()
 
 	switch m.focusIndex {
 	case 0:
@@ -321,8 +350,6 @@ func (m *Model) updateFocus() tea.Cmd {
 		return m.descriptionInput.Focus()
 	case 2:
 		return m.contentInput.Focus()
-	case 3:
-		return m.tagsInput.Focus()
 	}
 	return nil
 }
@@ -331,7 +358,6 @@ func (m *Model) resetForm() {
 	m.titleInput.SetValue("")
 	m.descriptionInput.SetValue("")
 	m.contentInput.SetValue("")
-	m.tagsInput.SetValue("")
 	m.activePrompt = nil
 	m.focusIndex = 0
 	m.titleInput.Focus()
@@ -341,7 +367,6 @@ func (m *Model) setForm(p vault.Prompt) {
 	m.titleInput.SetValue(p.Title)
 	m.descriptionInput.SetValue(p.Description)
 	m.contentInput.SetValue(p.PromptContent)
-	m.tagsInput.SetValue(strings.Join(p.Tags, ", "))
 	m.focusIndex = 0
 	m.titleInput.Focus()
 }
@@ -350,6 +375,7 @@ func (m *Model) setForm(p vault.Prompt) {
 
 type promptsMsg []vault.Prompt
 type promptCreatedMsg struct{}
+type promptDeletedMsg struct{}
 type errMsg error
 
 func (m Model) fetchPrompts() tea.Msg {
@@ -361,11 +387,6 @@ func (m Model) fetchPrompts() tea.Msg {
 }
 
 func (m Model) createPrompt() tea.Msg {
-	tags := strings.Split(m.tagsInput.Value(), ",")
-	for i, t := range tags {
-		tags[i] = strings.TrimSpace(t)
-	}
-
 	id := 0
 	var createdAt time.Time
 	if m.activePrompt != nil {
@@ -379,7 +400,6 @@ func (m Model) createPrompt() tea.Msg {
 		Title:         m.titleInput.Value(),
 		Description:   m.descriptionInput.Value(),
 		PromptContent: m.contentInput.Value(),
-		Tags:          tags,
 	}
 
 	_, err := m.service.CreateOrUpdatePrompt(p)
@@ -387,6 +407,19 @@ func (m Model) createPrompt() tea.Msg {
 		return errMsg(err)
 	}
 	return promptCreatedMsg{}
+}
+
+func (m Model) deletePrompt() tea.Msg {
+	if m.activePrompt == nil {
+		return nil
+	}
+
+	err := m.service.DeletePrompt(m.activePrompt.ID)
+	if err != nil {
+		return errMsg(err)
+	}
+
+	return promptDeletedMsg{}
 }
 
 // -- List Item Adapter --

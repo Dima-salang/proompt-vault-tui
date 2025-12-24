@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"sort"
 	"time"
-
 	"github.com/boltdb/bolt"
 )
 
@@ -53,7 +52,6 @@ func (repo *promptRepository) CreateOrUpdatePrompt(prompt *Prompt) (*Prompt, err
 		} else {
 			// just update the update time
 			prompt.UpdatedAt = time.Now()
-			repo.logger.Info("updating prompt", "id", prompt.ID)
 		}
 
 		// encode the prompt
@@ -176,7 +174,6 @@ func (repo *promptRepository) GetAllPrompts() ([]Prompt, error) {
 
 		return nil
 	})
-	repo.logger.Info("fetched all prompts", "count", len(prompts))
 
 	// sort by updated at after sorting by creation
 	// as we want to show the most recent prompts that were updated first

@@ -90,7 +90,7 @@ func NewModel(service vault.PromptService) Model {
 		Padding(0, 0, 0, 1)
 
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "✨ Prompt Vault"
+	l.Title = "Prompt Vault"
 	l.Styles.Title = listTitleStyle
 	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(primaryColor).Bold(true)
 	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(accentColor)
@@ -333,9 +333,9 @@ func (m Model) View() string {
 	var b strings.Builder
 
 	// Form header
-	title := "✨ Create New Prompt"
+	title := "Create New Prompt"
 	if m.activePrompt != nil {
-		title = "✏️  Edit Prompt"
+		title = "Edit Prompt"
 	}
 	b.WriteString(formTitleStyle.Render(title))
 	b.WriteString("\n\n")

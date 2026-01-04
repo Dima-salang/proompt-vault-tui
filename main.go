@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/Dima-salang/proompt-vault-tui/internal/vault"
 	"github.com/Dima-salang/proompt-vault-tui/tui"
@@ -41,5 +42,22 @@ func main() {
 }
 
 func openDB() (*bolt.DB, error) {
-	return bolt.Open("prompts.db", 0600, nil)
+	// create the db on the config directory
+	// we use the user config dir
+
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return nil, err
+	}
+
+	// create the subdir for the app
+	appDir := filepath.Join(configDir, "proompt-vault")
+	if err := os.MkdirAll(appDir, 0755); err != nil {
+		return nil, err
+	}
+
+	// db path
+	dbPath := filepath.Join(appDir, "prompts.db")
+
+	return bolt.Open(dbPath, 0600, nil)
 }
